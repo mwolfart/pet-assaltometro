@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#ffb300"
+    android:backgroundTint="#ffb300">
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/idText"
+        android:layout_marginTop="178dp"
+        android:width="300dp"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:textSize="24dp"
+        android:autoText="false"
+        android:text="Cartão UFRGS"
+        android:textColor="#4e4e4e"
+        android:backgroundTint="#ffdb86" />
+
+    <EditText
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/passText"
+        android:width="300dp"
+        android:textSize="24dp"
+        android:autoText="false"
+        android:text="Senha"
+        android:textColor="#4e4e4e"
+        android:backgroundTint="#ffdb86"
+        android:layout_marginTop="16dp"
+        android:layout_below="@+id/idText"
+        android:layout_alignStart="@+id/idText"
+        android:layout_centerInParent="true" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Login"
+        android:id="@+id/button"
+        android:layout_below="@+id/passText"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:width="300dp"
+        android:backgroundTint="#4e4e4e"
+        android:textSize="24dp"
+        android:textColor="#a9a9a9" />
+</RelativeLayout>

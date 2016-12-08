@@ -1,4 +1,4 @@
-package com.example.assaltometro_maps;
+package com.ufrgs.petcomp.pet_assaltometro;
 
 import org.junit.Test;
 
