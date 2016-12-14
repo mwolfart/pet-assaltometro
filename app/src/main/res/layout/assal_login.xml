@@ -7,7 +7,7 @@
     <EditText
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/idText"
+        android:id="@+id/txtId"
         android:layout_marginTop="178dp"
         android:width="300dp"
         android:layout_alignParentTop="true"
@@ -21,7 +21,7 @@
     <EditText
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/passText"
+        android:id="@+id/txtPass"
         android:width="300dp"
         android:textSize="24dp"
         android:autoText="false"
@@ -29,16 +29,16 @@
         android:textColor="#4e4e4e"
         android:backgroundTint="#ffdb86"
         android:layout_marginTop="16dp"
-        android:layout_below="@+id/idText"
-        android:layout_alignStart="@+id/idText"
+        android:layout_below="@+id/txtId"
+        android:layout_alignStart="@+id/txtId"
         android:layout_centerInParent="true" />
 
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Login"
-        android:id="@+id/button"
-        android:layout_below="@+id/passText"
+        android:id="@+id/btnLogin"
+        android:layout_below="@+id/txtPass"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="16dp"
         android:width="300dp"
