@@ -8,30 +8,21 @@ import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 
 
-import android.content.CursorLoader;
-import android.content.Loader;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.AsyncTask;
 
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.ContactsContract;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 
 import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -87,12 +78,21 @@ public class Login extends AppCompatActivity {
 
         mPasswordView = (EditText) findViewById(R.id.etPassword);
 
-        Button mEmailSignInButton = (Button) findViewById(R.id.btnLogin);
-        mEmailSignInButton.setOnClickListener(new OnClickListener() {
+        Button SignInButton = (Button) findViewById(R.id.btnLogin);
+        SignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 hideKeyboard();
-                attemptLogin();
+                attemptLoginOrRegister(false);
+            }
+        });
+
+        Button RegisterButton = (Button) findViewById(R.id.btnRegister);
+        RegisterButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                hideKeyboard();
+                attemptLoginOrRegister(true);
             }
         });
 
@@ -108,13 +108,12 @@ public class Login extends AppCompatActivity {
                     hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
         }
     }
-
     /**
      * Attempts to sign in or register the account specified by the login form.
      * If there are form errors (invalid email, missing fields, etc.), the
      * errors are presented and no actual login attempt is made.
      */
-    private void attemptLogin() {
+    private void attemptLoginOrRegister(boolean register) {
         if (mAuthTask != null) {
             return;
         }
@@ -156,7 +155,10 @@ public class Login extends AppCompatActivity {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            mAuthTask = new UserLoginTask(email, password);
+            if(register)
+                mAuthTask = new UserLoginTask(email, password, true);
+            else
+                mAuthTask = new UserLoginTask(email, password, false);
             Log.d(UserLoginTask.class.getSimpleName(),"executing auth task");
             mAuthTask.execute((Void) null);
         }
@@ -226,12 +228,14 @@ public class Login extends AppCompatActivity {
 
         private final String mEmail;
         private final String mPassword;
+        private final boolean Register;
 
         private Dialog loadingDialog;
 
-        UserLoginTask(String email, String password) {
+        UserLoginTask(String email, String password, boolean register) {
             mEmail = email;
             mPassword = password;
+            Register = register;
         }
 
         @Override
@@ -243,8 +247,9 @@ public class Login extends AppCompatActivity {
         @Override
         protected Boolean doInBackground(Void... params) {
 
-            String loginURL = "http://10.0.2.2/newProject/login.php";
-            String registerURL = "http://10.0.2.2/newProject/register.php";
+            String loginPreSaltURL = "http://10.0.2.2/PetUfrgsAssaltPHP/loginPreSalt.php";
+            String loginAfterSaltURL = "http://10.0.2.2/PetUfrgsAssaltPHP/loginAfterSalt.php";
+            String registerURL = "http://10.0.2.2/PetUfrgsAssaltPHP/register.php";
 
             Boolean result = false;
 
@@ -255,7 +260,19 @@ public class Login extends AppCompatActivity {
             }
 
             try {
-                URL url = new URL(loginURL);
+                URL url;
+                InputStream inputStream;
+                BufferedReader bufferedReader;
+                String tempString = "";
+                String line;
+                String preResult;
+                String saltedPassword;
+
+                if(Register)
+                    url = new URL(registerURL);
+                else
+                    url = new URL(loginPreSaltURL);
+
                 HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
                 httpURLConnection.setRequestMethod("POST");
                 httpURLConnection.setDoOutput(true);
@@ -264,29 +281,98 @@ public class Login extends AppCompatActivity {
                 OutputStream outputStream = httpURLConnection.getOutputStream();
                 BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
 
-                String post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8") + "&" +
-                        URLEncoder.encode("passwordString", "UTF-8") + "=" + URLEncoder.encode(mPassword, "UTF-8");
+                PasswordEncrypt passEncrypt = new PasswordEncrypt();
+                Log.d(UserLoginTask.class.getSimpleName(),"Encrypting given pass ");
+                String encryptedPasswordAndSalt =  passEncrypt.getEncryptedKey(mPassword);
 
+                String post_data;
+                if(Register)
+                    post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8") + "&" +
+                            URLEncoder.encode("passwordString", "UTF-8") + "=" + URLEncoder.encode(encryptedPasswordAndSalt, "UTF-8");
+                else{
+                    post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8");
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Posting data");
+                    bufferedWriter.write(post_data);
+                    bufferedWriter.flush();
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Getting InputStream");
+                    inputStream = httpURLConnection.getInputStream();
+                    Log.d(UserLoginTask.class.getSimpleName(),"Making BufferedReader from InputStream");
+                    bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"));
+
+
+                    tempString = "";
+                    Log.d(UserLoginTask.class.getSimpleName(),"Reading from BufferedReader");
+                    while ((line = bufferedReader.readLine()) != null) {
+                        tempString += line;
+                    }
+
+                    preResult = tempString.trim();
+                    if(preResult.equalsIgnoreCase("failure")||preResult.contains("_!@#$&*ghijklmnopqrstuvxz"))
+                    {
+                        Log.d(UserLoginTask.class.getSimpleName(),"Failing");
+                        bufferedReader.close();
+                        inputStream.close();
+                        httpURLConnection.disconnect();
+
+                        //Toast.makeText(getApplicationContext(), "User not found", Toast.LENGTH_SHORT).show();
+                        return false;
+                    }
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Key is: " + preResult );
+                    String salt = preResult.substring(40,64);
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Salt is: " + salt );
+
+                    saltedPassword = passEncrypt.getKeyFromPassAndSalt(mPassword,salt);
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Salted Pass is: " + saltedPassword );
+
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Changing URL");
+                    url = new URL(loginAfterSaltURL);
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Connecting");
+
+                    httpURLConnection = (HttpURLConnection) url.openConnection();
+                    httpURLConnection.setRequestMethod("POST");
+                    httpURLConnection.setDoOutput(true);
+                    httpURLConnection.setDoInput(true);
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"Getting OutputStream");
+                    outputStream = httpURLConnection.getOutputStream();
+                    Log.d(UserLoginTask.class.getSimpleName(),"Getting BufferedWriter");
+                    bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
+
+                    Log.d(UserLoginTask.class.getSimpleName(),"we are about to post this: " + saltedPassword+salt);
+
+                    post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8") + "&" +
+                            URLEncoder.encode("passwordString", "UTF-8") + "=" + URLEncoder.encode(saltedPassword+salt, "UTF-8");
+
+                }
+
+                Log.d(UserLoginTask.class.getSimpleName(),"Posting data");
                 bufferedWriter.write(post_data);
                 bufferedWriter.flush();
                 bufferedWriter.close();
                 outputStream.close();
 
-                InputStream inputStream = httpURLConnection.getInputStream();
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"));
+                Log.d(UserLoginTask.class.getSimpleName(),"Getting InputStream");
+                inputStream = httpURLConnection.getInputStream();
+                bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"));
 
-                String s = "";
-                String line = "";
+                Log.d(UserLoginTask.class.getSimpleName(),"Getting lines from BufferedReader");
+                tempString = "";
                 while ((line = bufferedReader.readLine()) != null) {
-                    s += line;
-
+                    tempString += line;
                 }
 
                 bufferedReader.close();
                 inputStream.close();
                 httpURLConnection.disconnect();
 
-                String preResult = s.trim();
+                preResult = tempString.trim();
                 Log.d(UserLoginTask.class.getSimpleName(),"PreResult is: " + preResult );
                 result = preResult.equalsIgnoreCase("success");
                 Log.d(UserLoginTask.class.getSimpleName(),"result is: " + result.toString() );
@@ -294,6 +380,8 @@ public class Login extends AppCompatActivity {
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             } catch (IOException e) {
+                e.printStackTrace();
+            } catch (NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
 
@@ -388,6 +476,7 @@ public class Login extends AppCompatActivity {
 
             encryptedKey = sb.toString() + sb2.toString(); //concatenate both strings so that we get a 64 char string
 
+            System.out.println("Password with salt is "+ encryptedKey);
             return encryptedKey;
         }
 
@@ -399,9 +488,9 @@ public class Login extends AppCompatActivity {
 
 
             //for more info on this part, just refer to the getEncryptedKey function above
-            for (int i = 0; i < saltByteArray.length; i++) {
+            /*for (int i = 0; i < saltByteArray.length; i++) {
                 System.out.print(saltByteArray[i] + ",");
-            }
+            }*/
 
             md.update(saltByteArray);
             md.update(password.getBytes(Charset.forName("UTF-8")));
@@ -413,9 +502,7 @@ public class Login extends AppCompatActivity {
                 sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1)); //get hex from bytes of the digest
             }
 
-            String convertedString = sb.toString();
-
-            return convertedString;
+            return sb.toString();
         }
 
 
