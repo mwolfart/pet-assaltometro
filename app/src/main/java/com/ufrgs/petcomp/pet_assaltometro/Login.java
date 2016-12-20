@@ -3,12 +3,9 @@ package com.ufrgs.petcomp.pet_assaltometro;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
-import android.content.pm.PackageManager;
-import android.os.Debug;
-import android.support.annotation.NonNull;
-import android.support.design.widget.Snackbar;
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
-import android.app.LoaderManager.LoaderCallbacks;
+
 
 import android.content.CursorLoader;
 import android.content.Loader;
@@ -45,6 +42,10 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 
 
 /**
@@ -68,6 +69,9 @@ public class Login extends AppCompatActivity {
     // UI references.
     private EditText mEmailView;
     private EditText mPasswordView;
+
+    public static final String USER_NAME = "USERNAME";
+
     private View mProgressView;
     private View mLoginFormView;
     private View mLoginButtonsFormView;
@@ -142,6 +146,7 @@ public class Login extends AppCompatActivity {
             // perform the user login attempt.
             showProgress(true);
             mAuthTask = new UserLoginTask(email, password);
+            Log.d(UserLoginTask.class.getSimpleName(),"executing auth task");
             mAuthTask.execute((Void) null);
         }
     }
@@ -233,6 +238,12 @@ public class Login extends AppCompatActivity {
             Boolean result = false;
 
             try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            try {
                 URL url = new URL(loginURL);
                 HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
                 httpURLConnection.setRequestMethod("POST");
@@ -285,7 +296,11 @@ public class Login extends AppCompatActivity {
             loadingDialog.dismiss();
 
             if (success) {
+                Log.d(UserLoginTask.class.getSimpleName(),"creating new intent");
+                Intent intent = new Intent(Login.this, UserPanel.class);
+                intent.putExtra(USER_NAME, mEmail);
                 finish();
+                startActivity(intent);
             } else {
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
@@ -298,5 +313,112 @@ public class Login extends AppCompatActivity {
             showProgress(false);
         }
     }
+
+    /**
+     * Handles everything encryption related
+     */
+    public class PasswordEncrypt{
+
+        public String getEncryptedKey(String password) throws NoSuchAlgorithmException{
+            String encryptedKey;
+
+            //Define hash algorithm
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+
+            //Salt generation
+            SecureRandom random = new SecureRandom();
+
+            //byte[] salt = new byte[20]; //enable to salt have the same size of SHA hash, that is, 20 bytes, 2 chars per byte
+            byte[] salt = new byte[12]; //salt will have 12 bytes, 2 chars per byte so that we get 64 bytes in the end
+
+            //create salt randomnly
+            random.nextBytes(salt);
+
+
+            StringBuilder sb2 = new StringBuilder();
+            for (int i = 0; i < salt.length; i++) {
+                System.out.print(salt[i] + ","); //only enable if you want to see signed integers for each byte
+
+                //make a 40bit hash appending each byte
+                sb2.append(Integer.toString((salt[i] & 0xff) + 0x100, 16).substring(1));
+            }
+
+            System.out.println("Salt hash is "+ sb2.toString());
+            md.update(salt); //we append this salt to the end of the hash before storing
+
+            //get the entry bytes to put in the hash function
+            byte[] b = password.getBytes(Charset.forName("UTF-8"));
+
+            //put the password for digest
+            md.update(b);
+
+            //do the hash magic
+            byte[] mdbytes = md.digest();
+
+
+            //get hex from bytes of the digest
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < mdbytes.length; i++) {
+                sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1));
+            }
+
+            // or we could use other way to get digest to hex
+           /*
+           //second method to get the digest in hex format
+           StringBuffer hexString = new StringBuffer();
+            for (int i=0;i<mdbytes.length;i++) {
+                String hex=Integer.toHexString(0xff & mdbytes[i]);
+                if(hex.length()==1) hexString.append('0');
+                hexString.append(hex);
+            }
+            System.out.println("Digest(in hex format):: " + hexString.toString());
+           */
+
+
+            encryptedKey = sb.toString() + sb2.toString(); //concatenate both strings so that we get a 64 char string
+
+            return encryptedKey;
+        }
+
+
+        public String getKeyFromPassAndSalt(String password, String salt) throws NoSuchAlgorithmException {
+
+            MessageDigest md = MessageDigest.getInstance("SHA-1"); //Hash function
+            byte[] saltByteArray = hexStringToByteArray(salt);
+
+
+            //for more info on this part, just refer to the getEncryptedKey function above
+            for (int i = 0; i < saltByteArray.length; i++) {
+                System.out.print(saltByteArray[i] + ",");
+            }
+
+            md.update(saltByteArray);
+            md.update(password.getBytes(Charset.forName("UTF-8")));
+
+            byte[] mdbytes = md.digest();
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < mdbytes.length; i++) {
+                sb.append(Integer.toString((mdbytes[i] & 0xff) + 0x100, 16).substring(1)); //get hex from bytes of the digest
+            }
+
+            String convertedString = sb.toString();
+
+            return convertedString;
+        }
+
+
+        public byte[] hexStringToByteArray(String s) {
+            int len = s.length();
+            byte[] data = new byte[len / 2]; //roughly 2 chars per byte
+            for (int i = 0; i < len; i += 2) {
+                data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) //first char in the 4 bigger bits
+                        + Character.digit(s.charAt(i+1), 16)); //second in the smaller ones
+            }
+            return data;
+        }
+
+    }
+
 }
 

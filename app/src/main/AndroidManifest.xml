@@ -20,6 +20,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".UserPanel"
+            android:label="UserPanel"
+            android:parentActivityName=".Login" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.ufrgs.petcomp.pet_assaltometro.Login" />
+        </activity>
     </application>
 
 </manifest>
