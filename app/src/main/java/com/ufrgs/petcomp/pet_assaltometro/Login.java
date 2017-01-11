@@ -5,6 +5,8 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 
 
@@ -73,6 +75,9 @@ public class Login extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.assal_login);
+
+
+
         // Set up the login form.
         mEmailView = (EditText) findViewById(R.id.etUsername);
 
@@ -99,6 +104,17 @@ public class Login extends AppCompatActivity {
         mLoginFormView = findViewById(R.id.login_form);
         mLoginButtonsFormView = findViewById(R.id.buttonsLogin);
         mProgressView = findViewById(R.id.login_progress);
+
+        String email = getDefaultPreferences("EMAIL", this);
+        String password = getDefaultPreferences("PASSWORD", this);
+
+        if (email != null && password != null )
+        {
+            mEmailView.setText(email);
+            mPasswordView.setText(password);
+            attemptLoginOrRegister(false);
+        }
+
     }
 
     private void hideKeyboard() {
@@ -157,8 +173,13 @@ public class Login extends AppCompatActivity {
             showProgress(true);
             if(register)
                 mAuthTask = new UserLoginTask(email, password, true);
-            else
+            else{
                 mAuthTask = new UserLoginTask(email, password, false);
+                Log.d(UserLoginTask.class.getSimpleName(),"Setting sharedprefs");
+                Log.d(UserLoginTask.class.getSimpleName(),"email: "+ email+ " password "+ password);
+                setDefaultPreferences("EMAIL", email, this);
+                setDefaultPreferences("PASSWORD", password, this);
+            }
             Log.d(UserLoginTask.class.getSimpleName(),"executing auth task");
             mAuthTask.execute((Void) null);
         }
@@ -166,13 +187,13 @@ public class Login extends AppCompatActivity {
 
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
-        //return email.contains("@");
+        //return email.contains("@"); //PLACEHOLDER
         return true;
     }
 
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
-        return password.length() > 4;
+        return password.length() > 4; //PLACEHOLDER
     }
 
     /**
@@ -218,6 +239,23 @@ public class Login extends AppCompatActivity {
             mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
             mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
         }
+    }
+
+    public static void setDefaultPreferences(String key, String value, Context context) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor editor = preferences.edit();
+        editor.putString(key, value);
+        editor.commit();
+    }
+
+    public static String getDefaultPreferences(String key, Context context) {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        return preferences.getString(key, null);
+    }
+
+    public void clearDefaultPreferences() {
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        preferences.edit().clear().commit();
     }
 
     /**
@@ -401,6 +439,9 @@ public class Login extends AppCompatActivity {
                 finish();
                 startActivity(intent);
             } else {
+                Log.d(UserLoginTask.class.getSimpleName(),"wrong something, clearing sharedprefs");
+                clearDefaultPreferences();
+                //clearDefaultPreferences("PASSWORD", getParent().toString());
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
             }
@@ -430,7 +471,7 @@ public class Login extends AppCompatActivity {
             //byte[] salt = new byte[20]; //enable to salt have the same size of SHA hash, that is, 20 bytes, 2 chars per byte
             byte[] salt = new byte[12]; //salt will have 12 bytes, 2 chars per byte so that we get 64 bytes in the end
 
-            //create salt randomnly
+            //create salt randomly
             random.nextBytes(salt);
 
 

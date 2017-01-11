@@ -8,6 +8,8 @@ import android.content.Intent;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 public class UserPanel extends AppCompatActivity {
@@ -23,5 +25,19 @@ public class UserPanel extends AppCompatActivity {
         TextView textView = (TextView) findViewById(R.id.userTextView);
 
         textView.setText("Welcome " + username);
+
+        Button SignInButton = (Button) findViewById(R.id.btnLogout);
+        SignInButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                userLogout();
+            }
+        });
+
         }
+
+    private void userLogout() {
+        finish(); //TODO
+    }
+
 }
