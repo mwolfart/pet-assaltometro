@@ -5,8 +5,6 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 
 
@@ -24,7 +22,6 @@ import android.widget.EditText;
 
 import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -41,6 +38,10 @@ import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+
+import static com.ufrgs.petcomp.pet_assaltometro.SharedPreferencesManager.getDefaultPreferences;
+import static com.ufrgs.petcomp.pet_assaltometro.SharedPreferencesManager.setDefaultPreferences;
+import static com.ufrgs.petcomp.pet_assaltometro.SharedPreferencesManager.clearDefaultPreferences;
 
 
 /**
@@ -113,6 +114,8 @@ public class Login extends AppCompatActivity {
             mEmailView.setText(email);
             mPasswordView.setText(password);
             attemptLoginOrRegister(false);
+            //mEmailView.setText("");
+            //mPasswordView.setText("");
         }
 
     }
@@ -172,9 +175,9 @@ public class Login extends AppCompatActivity {
             // perform the user login attempt.
             showProgress(true);
             if(register)
-                mAuthTask = new UserLoginTask(email, password, true);
+                mAuthTask = new UserLoginTask(email, password, true, this);
             else{
-                mAuthTask = new UserLoginTask(email, password, false);
+                mAuthTask = new UserLoginTask(email, password, false, this);
                 Log.d(UserLoginTask.class.getSimpleName(),"Setting sharedprefs");
                 Log.d(UserLoginTask.class.getSimpleName(),"email: "+ email+ " password "+ password);
                 setDefaultPreferences("EMAIL", email, this);
@@ -241,22 +244,6 @@ public class Login extends AppCompatActivity {
         }
     }
 
-    public static void setDefaultPreferences(String key, String value, Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(key, value);
-        editor.commit();
-    }
-
-    public static String getDefaultPreferences(String key, Context context) {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        return preferences.getString(key, null);
-    }
-
-    public void clearDefaultPreferences() {
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-        preferences.edit().clear().commit();
-    }
 
     /**
      * Represents an asynchronous login/registration task used to authenticate
@@ -270,10 +257,14 @@ public class Login extends AppCompatActivity {
 
         private Dialog loadingDialog;
 
-        UserLoginTask(String email, String password, boolean register) {
+        private Context mContext;
+
+        UserLoginTask(String email, String password, boolean register, Context context) {
             mEmail = email;
             mPassword = password;
             Register = register;
+
+            mContext = context;
         }
 
         @Override
@@ -436,11 +427,11 @@ public class Login extends AppCompatActivity {
                 Log.d(UserLoginTask.class.getSimpleName(),"creating new intent");
                 Intent intent = new Intent(Login.this, UserPanel.class);
                 intent.putExtra(USER_NAME, mEmail);
-                finish();
+                //finish();
                 startActivity(intent);
             } else {
                 Log.d(UserLoginTask.class.getSimpleName(),"wrong something, clearing sharedprefs");
-                clearDefaultPreferences();
+                clearDefaultPreferences(mContext);
                 //clearDefaultPreferences("PASSWORD", getParent().toString());
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();

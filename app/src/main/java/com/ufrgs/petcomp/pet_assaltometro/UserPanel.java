@@ -12,6 +12,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import static com.ufrgs.petcomp.pet_assaltometro.SharedPreferencesManager.clearDefaultPreferences;
+
 public class UserPanel extends AppCompatActivity {
 
     @Override
@@ -37,7 +39,8 @@ public class UserPanel extends AppCompatActivity {
         }
 
     private void userLogout() {
-        finish(); //TODO
+        clearDefaultPreferences(this);
+        finish();
     }
 
 }
