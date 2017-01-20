@@ -50,13 +50,6 @@ import static com.ufrgs.petcomp.pet_assaltometro.SharedPreferencesManager.clearD
 public class Login extends AppCompatActivity {
 
     /**
-     * A dummy authentication store containing known user names and passwords.
-     * TODO: remove after connecting to a real authentication system.
-     */
-    private static final String[] DUMMY_CREDENTIALS = new String[]{
-            "foo@example.com:hello", "bar@example.com:world"
-    };
-    /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
 
@@ -66,6 +59,7 @@ public class Login extends AppCompatActivity {
     private EditText mEmailView;
     private EditText mPasswordView;
 
+    //Used in the user panel
     public static final String USER_NAME = "USERNAME";
 
     private View mProgressView;
@@ -77,35 +71,39 @@ public class Login extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.assal_login);
 
-
-
         // Set up the login form.
         mEmailView = (EditText) findViewById(R.id.etUsername);
 
         mPasswordView = (EditText) findViewById(R.id.etPassword);
 
+        //Sign In Button Listener
         Button SignInButton = (Button) findViewById(R.id.btnLogin);
         SignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 hideKeyboard();
                 attemptLoginOrRegister(false);
+                mPasswordView.setText("");
             }
         });
 
+        //Register Button Listener
         Button RegisterButton = (Button) findViewById(R.id.btnRegister);
         RegisterButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
                 hideKeyboard();
                 attemptLoginOrRegister(true);
+                mPasswordView.setText("");
             }
         });
 
+        //Get views so we can hide on progress
         mLoginFormView = findViewById(R.id.login_form);
         mLoginButtonsFormView = findViewById(R.id.buttonsLogin);
         mProgressView = findViewById(R.id.login_progress);
 
+        //Getting sharedpreferences if we have something stored, if not just ignore
         String email = getDefaultPreferences("EMAIL", this);
         String password = getDefaultPreferences("PASSWORD", this);
 
@@ -114,12 +112,13 @@ public class Login extends AppCompatActivity {
             mEmailView.setText(email);
             mPasswordView.setText(password);
             attemptLoginOrRegister(false);
-            //mEmailView.setText("");
-            //mPasswordView.setText("");
+            mEmailView.setText("");
+            mPasswordView.setText("");
         }
 
     }
 
+    //Hide keyboard using different focus
     private void hideKeyboard() {
         View view = getCurrentFocus();
         if (view != null) {
@@ -127,6 +126,7 @@ public class Login extends AppCompatActivity {
                     hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
         }
     }
+
     /**
      * Attempts to sign in or register the account specified by the login form.
      * If there are form errors (invalid email, missing fields, etc.), the
@@ -188,12 +188,15 @@ public class Login extends AppCompatActivity {
         }
     }
 
+    //We are not using this yet
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
+
         //return email.contains("@"); //PLACEHOLDER
         return true;
     }
 
+    //Too simple logic, but it is a working prototype
     private boolean isPasswordValid(String password) {
         //TODO: Replace this with your own logic
         return password.length() > 4; //PLACEHOLDER
@@ -201,6 +204,7 @@ public class Login extends AppCompatActivity {
 
     /**
      * Shows the progress UI and hides the login form.
+     * Hides some elements before attempting login
      */
     @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
     private void showProgress(final boolean show) {
@@ -248,6 +252,8 @@ public class Login extends AppCompatActivity {
     /**
      * Represents an asynchronous login/registration task used to authenticate
      * the user.
+     *
+     * Has all the logic of connecting to our PHP script
      */
     public class UserLoginTask extends AsyncTask<Void, Void, Boolean> {
 
@@ -259,6 +265,7 @@ public class Login extends AppCompatActivity {
 
         private Context mContext;
 
+        //Default constructor arguments
         UserLoginTask(String email, String password, boolean register, Context context) {
             mEmail = email;
             mPassword = password;
@@ -273,15 +280,21 @@ public class Login extends AppCompatActivity {
             loadingDialog = ProgressDialog.show(Login.this, "Please wait", "Loading...");
         }
 
+
+        //Big logic of getting the data from SQL
         @Override
         protected Boolean doInBackground(Void... params) {
 
+            //This will be the script that gets the salt
             String loginPreSaltURL = "http://10.0.2.2/PetUfrgsAssaltPHP/loginPreSalt.php";
+            //This will attempt to use the user given password to login
             String loginAfterSaltURL = "http://10.0.2.2/PetUfrgsAssaltPHP/loginAfterSalt.php";
+            //Register only tries to register with the user given fields
             String registerURL = "http://10.0.2.2/PetUfrgsAssaltPHP/register.php";
 
             Boolean result = false;
 
+            //Delay, so that we can actually see the progress (loading) dialog
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -307,30 +320,43 @@ public class Login extends AppCompatActivity {
                 httpURLConnection.setDoOutput(true);
                 httpURLConnection.setDoInput(true);
 
+                //This will send the data to the script
                 OutputStream outputStream = httpURLConnection.getOutputStream();
+                //Using a BufferedWriter
                 BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
 
+                //This is our password encryption logic
                 PasswordEncrypt passEncrypt = new PasswordEncrypt();
                 Log.d(UserLoginTask.class.getSimpleName(),"Encrypting given pass ");
                 String encryptedPasswordAndSalt =  passEncrypt.getEncryptedKey(mPassword);
 
+                //The data being posted needs to be encoded before we send it to the script
+                //Register and Login have different logic
                 String post_data;
+
                 if(Register)
                     post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8") + "&" +
                             URLEncoder.encode("passwordString", "UTF-8") + "=" + URLEncoder.encode(encryptedPasswordAndSalt, "UTF-8");
                 else{
+                    /**
+                     * First we need to get the salt, so we make use of a temporary string to get it
+                     * Then later we try a normal approach of login, it is so to make code reuse
+                     * more efficient
+                     */
                     post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8");
 
                     Log.d(UserLoginTask.class.getSimpleName(),"Posting data");
                     bufferedWriter.write(post_data);
+                    //Send the data
                     bufferedWriter.flush();
 
+                    //Get the response
                     Log.d(UserLoginTask.class.getSimpleName(),"Getting InputStream");
                     inputStream = httpURLConnection.getInputStream();
                     Log.d(UserLoginTask.class.getSimpleName(),"Making BufferedReader from InputStream");
                     bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"));
 
-
+                    //For good measure, just clear tempString
                     tempString = "";
                     Log.d(UserLoginTask.class.getSimpleName(),"Reading from BufferedReader");
                     while ((line = bufferedReader.readLine()) != null) {
@@ -338,32 +364,35 @@ public class Login extends AppCompatActivity {
                     }
 
                     preResult = tempString.trim();
+                    //Query the result we got so that if it isn't a HEX String, just stop the process
+                    //If it isn't a HEX String, something is wrong with the PHP Script and/or the database
                     if(preResult.equalsIgnoreCase("failure")||preResult.contains("_!@#$&*ghijklmnopqrstuvxz"))
                     {
                         Log.d(UserLoginTask.class.getSimpleName(),"Failing");
                         bufferedReader.close();
                         inputStream.close();
                         httpURLConnection.disconnect();
-
-                        //Toast.makeText(getApplicationContext(), "User not found", Toast.LENGTH_SHORT).show();
                         return false;
                     }
 
                     Log.d(UserLoginTask.class.getSimpleName(),"Key is: " + preResult );
+                    //Salt is a 24 char string by definition
                     String salt = preResult.substring(40,64);
 
                     Log.d(UserLoginTask.class.getSimpleName(),"Salt is: " + salt );
-
                     saltedPassword = passEncrypt.getKeyFromPassAndSalt(mPassword,salt);
 
                     Log.d(UserLoginTask.class.getSimpleName(),"Salted Pass is: " + saltedPassword );
 
 
+                    //From here on we change the URL to PostSalt and attempt
+                    //a normal login using it
                     Log.d(UserLoginTask.class.getSimpleName(),"Changing URL");
                     url = new URL(loginAfterSaltURL);
 
                     Log.d(UserLoginTask.class.getSimpleName(),"Connecting");
 
+                    //Same logic using the first time we connected
                     httpURLConnection = (HttpURLConnection) url.openConnection();
                     httpURLConnection.setRequestMethod("POST");
                     httpURLConnection.setDoOutput(true);
@@ -374,19 +403,21 @@ public class Login extends AppCompatActivity {
                     Log.d(UserLoginTask.class.getSimpleName(),"Getting BufferedWriter");
                     bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream, "UTF-8"));
 
-                    Log.d(UserLoginTask.class.getSimpleName(),"we are about to post this: " + saltedPassword+salt);
+                    Log.d(UserLoginTask.class.getSimpleName(),"We are about to post this: " + saltedPassword+salt);
 
                     post_data = URLEncoder.encode("nameString", "UTF-8") + "=" + URLEncoder.encode(mEmail, "UTF-8") + "&" +
                             URLEncoder.encode("passwordString", "UTF-8") + "=" + URLEncoder.encode(saltedPassword+salt, "UTF-8");
-
                 }
 
                 Log.d(UserLoginTask.class.getSimpleName(),"Posting data");
                 bufferedWriter.write(post_data);
+                //Send the data
                 bufferedWriter.flush();
+
                 bufferedWriter.close();
                 outputStream.close();
 
+                //Get the info from the server
                 Log.d(UserLoginTask.class.getSimpleName(),"Getting InputStream");
                 inputStream = httpURLConnection.getInputStream();
                 bufferedReader = new BufferedReader(new InputStreamReader(inputStream, "iso-8859-1"));
@@ -397,10 +428,12 @@ public class Login extends AppCompatActivity {
                     tempString += line;
                 }
 
+                //Close all connections
                 bufferedReader.close();
                 inputStream.close();
                 httpURLConnection.disconnect();
 
+                //Query the data accordingly
                 preResult = tempString.trim();
                 Log.d(UserLoginTask.class.getSimpleName(),"PreResult is: " + preResult );
                 result = preResult.equalsIgnoreCase("success");
@@ -417,6 +450,7 @@ public class Login extends AppCompatActivity {
             return result;
         }
 
+        //Change the current screen or stop the process, depending on output form server
         @Override
         protected void onPostExecute(final Boolean success) {
             mAuthTask = null;
@@ -427,12 +461,14 @@ public class Login extends AppCompatActivity {
                 Log.d(UserLoginTask.class.getSimpleName(),"creating new intent");
                 Intent intent = new Intent(Login.this, UserPanel.class);
                 intent.putExtra(USER_NAME, mEmail);
+
                 //finish();
                 startActivity(intent);
+
             } else {
                 Log.d(UserLoginTask.class.getSimpleName(),"wrong something, clearing sharedprefs");
                 clearDefaultPreferences(mContext);
-                //clearDefaultPreferences("PASSWORD", getParent().toString());
+
                 mPasswordView.setError(getString(R.string.error_incorrect_password));
                 mPasswordView.requestFocus();
             }
